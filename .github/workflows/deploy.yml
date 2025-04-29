@@ -1,0 +1,31 @@
+name: Deploy Yii2 App
+
+on:
+  push:
+    branches: [ "main" ]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout Code
+      uses: actions/checkout@v3
+
+    - name: Build Docker Image
+      run: docker build -t krishtambe/yii2-app:latest ./yii2-app-basic
+
+    - name: Login to Docker Hub
+      run: echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
+
+    - name: Push Image
+      run: docker push krishtambe/yii2-app:latest
+
+    - name: SSH and Deploy
+      uses: appleboy/ssh-action@v0.1.6
+      with:
+        host: ${{ secrets.EC2_HOST }}
+        username: ubuntu
+        key: ${{ secrets.EC2_SSH_KEY }}
+        script: |
+          docker pull krishtambe/yii2-app:latest
+          docker service update --image krishtambe/yii2-app:latest yii2stack_yii2-app
